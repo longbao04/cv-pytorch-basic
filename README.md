@@ -19,7 +19,7 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-此步骤会安装 `torch`、`torchvision` 及它们所需的依赖。
+此步骤会安装 `torch`、`torchvision`、`matplotlib` 及它们所需的依赖。
 
 ## 3. 训练并保存模型
 
@@ -55,6 +55,18 @@ python predict.py path/to/image.png
 Predicted digit: 7
 ```
 
+## 5. 可视化模型预测结果
+
+确保项目目录中已有 `mnist_cnn.pth`，然后运行：
+
+```bash
+python visualize_predictions.py
+```
+
+脚本复用 `main.py` 中的 `SimpleCNN` 和预处理，加载已有模型参数，自动选择 `mps` 或 `cpu`，不会重新训练模型。MNIST 数据保存在项目的 `data/` 目录；缺少数据时只下载 MNIST 数据集。
+
+程序使用 matplotlib 显示测试集前 16 张图片，排列为 4×4 网格。每张图片的标题显示 `True: 真实标签, Pred: 预测标签`；预测错误时额外标注 `WRONG`。关闭图片窗口即可结束程序。
+
 ## 代码流程
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
@@ -63,7 +75,7 @@ Predicted digit: 7
 4. 关闭梯度计算，在独立测试集上统计准确率。
 5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
-`main.py` 和 `predict.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
+`main.py`、`predict.py` 和 `visualize_predictions.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
 
 退出虚拟环境：
 
