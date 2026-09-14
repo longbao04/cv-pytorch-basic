@@ -3,5 +3,7 @@ __pycache__/
 *.pyc
 data/
 mnist_cnn.pth
+mnist_cnn_simple.pth
+mnist_cnn_deeper.pth
 training_history.csv
 sample_digit.png

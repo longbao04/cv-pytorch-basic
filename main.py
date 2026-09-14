@@ -11,8 +11,12 @@ from torchvision import datasets, transforms
 
 
 # 保存和加载都使用脚本旁的路径，避免工作目录不同导致找不到模型。
-MODEL_PATH = Path(__file__).resolve().parent / "mnist_cnn.pth"
 HISTORY_PATH = Path(__file__).resolve().parent / "training_history.csv"
+
+
+def get_model_path(model_name):
+    """不同结构使用不同参数文件，避免训练时互相覆盖。"""
+    return Path(__file__).resolve().parent / f"mnist_cnn_{model_name}.pth"
 
 
 def build_transform():
@@ -46,6 +50,43 @@ class SimpleCNN(nn.Module):
     def forward(self, images):
         # 返回原始分类分数（logits），交叉熵损失内部会处理 softmax。
         return self.layers(images)
+
+
+class DeeperCNN(nn.Module):
+    """每次池化前使用两层卷积，尝试提取更丰富的数字特征。"""
+
+    def __init__(self):
+        super().__init__()
+        self.layers = nn.Sequential(
+            # padding=1 保持宽高；第二层卷积继续加工第一层提取的特征。
+            nn.Conv2d(1, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(16, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 28×28 → 14×14。
+            # 通道数增加到 32，随后再次卷积、池化。
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(32, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),  # 14×14 → 7×7。
+            nn.Flatten(),  # 每张图片展开成 32×7×7 个特征。
+            nn.Linear(32 * 7 * 7, 64),
+            nn.ReLU(),
+            nn.Linear(64, 10),  # 输出数字 0～9 的分类分数。
+        )
+
+    def forward(self, images):
+        return self.layers(images)
+
+
+def build_model(model_name):
+    """训练和预测共用模型选择逻辑，确保加载参数时结构一致。"""
+    if model_name == "simple":
+        return SimpleCNN()
+    if model_name == "deeper":
+        return DeeperCNN()
+    raise ValueError(f"不支持的模型：{model_name}，请选择 simple 或 deeper。")
 
 
 def train_one_epoch(model, loader, criterion, optimizer, device, epoch, epochs):
@@ -90,6 +131,9 @@ def evaluate(model, loader, device):
 def main():
     # 命令行可指定训练轮数；不传 --epochs 时默认训练 1 轮。
     parser = argparse.ArgumentParser(description="训练 MNIST 手写数字分类模型")
+    # choices 限定可选结构；不传 --model 时沿用原来的简单 CNN。
+    parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
+                        help="模型结构（默认：simple）")
     parser.add_argument("--epochs", type=int, default=1, help="训练轮数（默认：1）")
     args = parser.parse_args()
     if args.epochs < 1:
@@ -114,7 +158,9 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=0)
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
 
-    model = SimpleCNN().to(device)
+    model = build_model(args.model).to(device)
+    model_path = get_model_path(args.model)
+    print(f"使用模型：{args.model}", flush=True)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
@@ -145,8 +191,8 @@ def main():
     print(f"训练记录已保存到：{HISTORY_PATH}")
 
     # 只保存模型参数；预测时先创建相同结构，再加载这些参数。
-    torch.save(model.state_dict(), MODEL_PATH)
-    print(f"模型参数已保存到：{MODEL_PATH}")
+    torch.save(model.state_dict(), model_path)
+    print(f"模型参数已保存到：{model_path}")
 
 
 if __name__ == "__main__":

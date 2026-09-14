@@ -1,5 +1,6 @@
 """显示 MNIST 测试集中前 16 个预测错误的样本。"""
 
+import argparse
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -7,19 +8,29 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets
 
-from main import MODEL_PATH, SimpleCNN, build_transform
+from main import build_model, build_transform, get_model_path
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    # 与训练脚本使用相同的模型名称，默认选择 simple。
+    parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
+                        help="模型结构（默认：simple）")
+    args = parser.parse_args()
+    model_path = get_model_path(args.model)
+
     # Apple Silicon Mac 优先使用 MPS；不可用时自动使用 CPU。
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     print(f"使用设备：{device}")
 
     # main.py 有入口保护，导入它不会训练；这里只加载已保存的模型参数。
-    if not MODEL_PATH.is_file():
-        raise FileNotFoundError(f"找不到模型参数，请确认文件存在：{MODEL_PATH}")
-    model = SimpleCNN().to(device)
-    model.load_state_dict(torch.load(MODEL_PATH, map_location=device, weights_only=True))
+    if not model_path.is_file():
+        parser.error(
+            f"找不到模型参数：{model_path}。"
+            f"请先运行 python main.py --model {args.model} 训练并保存模型。"
+        )
+    model = build_model(args.model).to(device)
+    model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
     model.eval()  # 切换到评估模式，使用模型进行预测。
 
     # 使用与训练相同的预处理，缺少数据时只下载 MNIST 数据集。
