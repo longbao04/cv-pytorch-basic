@@ -101,6 +101,18 @@ python visualize_errors.py
 
 程序完整遍历 MNIST 测试集，打印预测错误的总数，按测试集原始顺序显示前 16 个错误样本。matplotlib 窗口使用 4×4 网格，每张图片标题为 `True: 真实标签, Pred: 预测标签`。不足 16 个错误样本时，剩余位置留空；没有错误样本时打印提示并结束。关闭图片窗口即可结束程序。
 
+## 8. 混淆矩阵分析
+
+确保项目目录中已有 `mnist_cnn.pth`，在已激活的虚拟环境中运行：
+
+```bash
+python confusion_matrix.py
+```
+
+脚本加载已有模型参数，自动选择 `mps` 或 `cpu`，完整遍历 MNIST 测试集，不会重新训练模型。缺少数据时只下载 MNIST 数据集到项目的 `data/` 目录；模型参数文件不存在时会给出清楚提示。
+
+混淆矩阵的行是真实标签（True label），列是模型预测标签（Predicted label）。10×10 热力图的每个格子显示对应的样本数量：对角线表示正确分类，其他位置表示预测错误。终端按数量从高到低打印最容易混淆的前 10 个错误类别对，例如 `True 5 -> Pred 3: 12 samples`，不包含正确分类；不足 10 对时显示全部。关闭图形窗口即可结束程序。
+
 ## 代码流程
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
@@ -109,7 +121,7 @@ python visualize_errors.py
 4. 每轮训练后关闭梯度计算，在独立测试集上统计准确率，将平均训练损失和准确率写入 CSV；可通过 `plot_training_curve.py` 绘制曲线。
 5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
-`main.py`、`plot_training_curve.py`、`predict.py`、`visualize_predictions.py` 和 `visualize_errors.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
+`main.py`、`plot_training_curve.py`、`predict.py`、`visualize_predictions.py`、`visualize_errors.py` 和 `confusion_matrix.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
 
 退出虚拟环境：
 
