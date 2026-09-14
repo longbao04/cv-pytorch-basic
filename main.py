@@ -1,5 +1,6 @@
 """PyTorch 入门：用简单 CNN 识别 MNIST 手写数字。"""
 
+import argparse
 from pathlib import Path
 
 import torch
@@ -45,7 +46,7 @@ class SimpleCNN(nn.Module):
         return self.layers(images)
 
 
-def train_one_epoch(model, loader, criterion, optimizer, device):
+def train_one_epoch(model, loader, criterion, optimizer, device, epoch, epochs):
     model.train()
     for batch_index, (images, labels) in enumerate(loader, start=1):
         # 图片、标签和模型必须放在同一个设备上。
@@ -58,7 +59,7 @@ def train_one_epoch(model, loader, criterion, optimizer, device):
 
         if batch_index == 1 or batch_index % 100 == 0 or batch_index == len(loader):
             print(
-                f"Epoch 1/1 | Batch {batch_index}/{len(loader)} "
+                f"Epoch {epoch}/{epochs} | Batch {batch_index}/{len(loader)} "
                 f"| Loss: {loss.item():.4f}",
                 flush=True,
             )
@@ -78,6 +79,13 @@ def evaluate(model, loader, device):
 
 
 def main():
+    # 命令行可指定训练轮数；不传 --epochs 时默认训练 1 轮。
+    parser = argparse.ArgumentParser(description="训练 MNIST 手写数字分类模型")
+    parser.add_argument("--epochs", type=int, default=1, help="训练轮数（默认：1）")
+    args = parser.parse_args()
+    if args.epochs < 1:
+        parser.error("--epochs 必须是大于或等于 1 的整数")
+
     torch.manual_seed(42)
     # Apple Silicon Mac 优先使用 MPS；不可用时自动使用 CPU。
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -102,7 +110,9 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    train_one_epoch(model, train_loader, criterion, optimizer, device)
+    # 每轮继续更新同一个模型，完成指定轮数后再测试和保存。
+    for epoch in range(1, args.epochs + 1):
+        train_one_epoch(model, train_loader, criterion, optimizer, device, epoch, args.epochs)
     accuracy = evaluate(model, test_loader, device)
     print(f"测试集 Accuracy：{accuracy:.2%}")
 

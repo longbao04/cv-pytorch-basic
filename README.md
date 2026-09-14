@@ -1,6 +1,6 @@
 # PyTorch 入门：MNIST 图像分类
 
-用一个简单的卷积神经网络（CNN）识别手写数字 0～9。只训练 **1 个 epoch**，适合 Mac 初学者快速体验完整的训练与测试流程。
+用一个简单的卷积神经网络（CNN）识别手写数字 0～9。默认训练 **1 个 epoch**，也可以通过 `--epochs` 指定训练轮数，适合 Mac 初学者体验完整的训练与测试流程。
 
 ## 1. 创建并激活虚拟环境
 
@@ -23,9 +23,19 @@ python -m pip install -r requirements.txt
 
 ## 3. 训练并保存模型
 
+训练 1 个 epoch（默认值）：
+
 ```bash
 python main.py
 ```
+
+训练 3 个 epochs：
+
+```bash
+python main.py --epochs 3
+```
+
+`--epochs` 必须是大于或等于 1 的整数。可以在 [experiment_notes.md](experiment_notes.md) 中记录并比较两次实验结果。
 
 首次运行需要联网，`torchvision.datasets.MNIST` 会自动将 MNIST 数据下载到项目的 `data/` 目录；后续运行会复用已有数据。代码不会下载预训练模型或其他文件。
 
@@ -83,7 +93,7 @@ python visualize_errors.py
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
 2. 使用两层卷积提取图像特征，通过池化缩小特征图，再用全连接层输出 10 个类别的分数。
-3. 使用交叉熵损失和 Adam 优化器，完整训练一次训练集。
+3. 使用交叉熵损失和 Adam 优化器，按 `--epochs` 指定的轮数遍历训练集（默认 1 轮）。
 4. 关闭梯度计算，在独立测试集上统计准确率。
 5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
