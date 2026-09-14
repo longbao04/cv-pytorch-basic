@@ -7,3 +7,6 @@ mnist_cnn_simple.pth
 mnist_cnn_deeper.pth
 training_history.csv
 sample_digit.png
+mnist_cnn_simple_aug.pth
+mnist_cnn_deeper_aug.pth
+training_history*.csv

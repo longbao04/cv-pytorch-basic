@@ -11,20 +11,36 @@ from torchvision import datasets, transforms
 
 
 # 保存和加载都使用脚本旁的路径，避免工作目录不同导致找不到模型。
-HISTORY_PATH = Path(__file__).resolve().parent / "training_history.csv"
+PROJECT_DIR = Path(__file__).resolve().parent
 
 
-def get_model_path(model_name):
-    """不同结构使用不同参数文件，避免训练时互相覆盖。"""
-    return Path(__file__).resolve().parent / f"mnist_cnn_{model_name}.pth"
+def get_model_path(model_name, augment=False):
+    """按模型结构和增强开关区分参数文件，避免不同实验互相覆盖。"""
+    suffix = "_aug" if augment else ""
+    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}.pth"
 
 
-def build_transform():
-    """训练和预测共用相同的张量转换与归一化操作。"""
-    return transforms.Compose([
+def get_history_path(model_name, augment=False):
+    """训练和绘图共用命名规则，每种实验分别保存训练记录。"""
+    suffix = "_aug" if augment else ""
+    return PROJECT_DIR / f"training_history_{model_name}{suffix}.csv"
+
+
+def build_transform(augment=False):
+    """默认只转换和归一化；训练集可按需加入轻量随机增强。"""
+    operations = []
+    if augment:
+        # 在转为张量前，随机旋转最多 10 度，并平移最多宽高的 10%。
+        # 每次读取图片都会重新随机变化，让模型接触更多数字姿态。
+        operations.extend([
+            transforms.RandomRotation(10),
+            transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        ])
+    operations.extend([
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,)),
     ])
+    return transforms.Compose(operations)
 
 
 class SimpleCNN(nn.Module):
@@ -135,6 +151,8 @@ def main():
     parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
                         help="模型结构（默认：simple）")
     parser.add_argument("--epochs", type=int, default=1, help="训练轮数（默认：1）")
+    # store_true 表示只有传入 --augment 才开启，默认值为 False。
+    parser.add_argument("--augment", action="store_true", help="开启训练集轻量数据增强")
     args = parser.parse_args()
     if args.epochs < 1:
         parser.error("--epochs 必须是大于或等于 1 的整数")
@@ -145,28 +163,31 @@ def main():
     print(f"使用设备：{device}", flush=True)
 
     # 将灰度图片转为 [1, 28, 28] 张量，并将像素值从 [0, 1] 归一化到 [-1, 1]。
-    transform = build_transform()
+    train_transform = build_transform(augment=args.augment)
+    # 测试集始终只转换和归一化，保证有无增强的实验使用相同评估条件。
+    test_transform = build_transform()
     # 数据保存在脚本旁的 data 目录；已有数据时不会重复下载。
     data_dir = Path(__file__).resolve().parent / "data"
     train_dataset = datasets.MNIST(
-        root=str(data_dir), train=True, download=True, transform=transform
+        root=str(data_dir), train=True, download=True, transform=train_transform
     )
     test_dataset = datasets.MNIST(
-        root=str(data_dir), train=False, download=True, transform=transform
+        root=str(data_dir), train=False, download=True, transform=test_transform
     )
     # num_workers=0 避免 Mac 新手遇到多进程数据加载问题。
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=0)
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
 
     model = build_model(args.model).to(device)
-    model_path = get_model_path(args.model)
-    print(f"使用模型：{args.model}", flush=True)
+    model_path = get_model_path(args.model, args.augment)
+    history_path = get_history_path(args.model, args.augment)
+    print(f"使用模型：{args.model} | 数据增强：{args.augment}", flush=True)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮训练后测试，并写入 CSV；再次训练会覆盖上一次的记录。
-    with HISTORY_PATH.open("w", newline="", encoding="utf-8") as history_file:
+    # 每轮训练后测试，并写入 CSV；再次训练相同模型和增强设置会覆盖该实验的记录。
+    with history_path.open("w", newline="", encoding="utf-8") as history_file:
         writer = csv.DictWriter(
             history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]
         )
@@ -188,7 +209,7 @@ def main():
                 f"| 测试集 Accuracy：{accuracy:.2%}",
                 flush=True,
             )
-    print(f"训练记录已保存到：{HISTORY_PATH}")
+    print(f"训练记录已保存到：{history_path}")
 
     # 只保存模型参数；预测时先创建相同结构，再加载这些参数。
     torch.save(model.state_dict(), model_path)

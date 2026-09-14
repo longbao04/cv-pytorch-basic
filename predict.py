@@ -16,13 +16,16 @@ def main():
     # 根据模型名称同时选择结构和参数文件。
     parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
                         help="模型结构（默认：simple）")
+    # 此开关只选择增强训练得到的参数；预测图片不做随机增强。
+    parser.add_argument("--augment", action="store_true", help="加载数据增强训练的模型")
     args = parser.parse_args()
-    model_path = get_model_path(args.model)
+    model_path = get_model_path(args.model, args.augment)
 
     if not model_path.is_file():
         parser.error(
             f"找不到模型参数：{model_path}。"
-            f"请先运行 python main.py --model {args.model} 训练并保存模型。"
+            f"请先运行 python main.py --model {args.model}"
+            f"{' --augment' if args.augment else ''} 训练并保存模型。"
         )
     if not args.image_path.is_file():
         parser.error(f"找不到图片：{args.image_path}")
@@ -37,7 +40,7 @@ def main():
         with Image.open(args.image_path) as image:
             # 转为单通道灰度图，再缩放到 MNIST 使用的 28×28 大小。
             image = image.convert("L").resize((28, 28))
-            # 复用训练 transform；增加批次维度：[1, 28, 28] → [1, 1, 28, 28]。
+            # 只复用张量转换和归一化，不做随机增强；增加批次维度：[1, 28, 28] → [1, 1, 28, 28]。
             images = build_transform()(image).unsqueeze(0)
     except (OSError, UnidentifiedImageError) as error:
         parser.error(f"无法读取图片：{error}")

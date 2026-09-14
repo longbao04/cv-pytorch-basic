@@ -49,7 +49,7 @@ python main.py --model simple --epochs 3
 python main.py --model deeper --epochs 3
 ```
 
-每次训练后先记录结果，再运行下一次训练，因为 `training_history.csv` 会被覆盖。`avg final loss` 填最后一轮的 Average train loss（CSV 中最后一行的 `avg_train_loss`），不是最后一个 batch 的 loss；`test accuracy` 填最后一轮测试准确率，CSV 中的小数可转换为百分比。
+各模型的记录分别保存在 `training_history_simple.csv` 和 `training_history_deeper.csv`；再次训练相同模型和增强设置会覆盖对应文件，请及时记录结果。`avg final loss` 填最后一轮的 Average train loss（CSV 中最后一行的 `avg_train_loss`），不是最后一个 batch 的 loss；`test accuracy` 填最后一轮测试准确率，CSV 中的小数可转换为百分比。
 
 使用 `python visualize_errors.py --model simple` 和 `python visualize_errors.py --model deeper` 查看各自错误样本，也可用 `python confusion_matrix.py --model deeper` 分析 deeper 的混淆情况，再填写实际观察与结论。
 
@@ -60,3 +60,38 @@ python main.py --model deeper --epochs 3
 - 这个提升很小，不能说明深模型一定明显更好。
 - MNIST 数据集较简单，SimpleCNN 已经能取得较高准确率。
 - 更严谨的实验应该多次运行，记录平均 accuracy 和标准差。
+
+## 数据增强实验
+
+### 实验目的
+
+比较同一模型在有无数据增强时的效果。在模型结构、训练轮数、batch size、优化器和学习率相同的条件下，仅改变训练集是否使用轻量随机旋转和平移，观察测试准确率和错误样本的变化。测试集始终不使用数据增强。
+
+### 实验结果
+
+| model | augment | epochs | avg final loss | test accuracy | 观察 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- |
+| SimpleCNN | False | 3 | | 98.35% | | |
+| SimpleCNN | True | 3 | 0.1352 | 98.18% | | 当前增强设置没有带来提升。 |
+
+以上结果来自已有实验记录。增强实验的 Average train loss 为 0.1352，测试准确率为 98.18%；未提供的 baseline 平均训练损失和错误样本观察留空。
+
+```bash
+# 普通训练（baseline）：
+python main.py --model simple --epochs 3
+# 数据增强训练：
+python main.py --model simple --epochs 3 --augment
+# 查看增强实验曲线和混淆矩阵：
+python plot_training_curve.py --model simple --augment
+python confusion_matrix.py --model simple --augment
+```
+
+普通和增强实验分别保存到 `training_history_simple.csv` 与 `training_history_simple_aug.csv`。test accuracy 填最后一轮的测试集 Accuracy；观察可结合曲线、混淆矩阵或 `python visualize_errors.py --model simple --augment` 的错误样本填写。数据增强是否改善效果，应根据实际结果得出结论。
+
+### 实验结论
+
+- 在 SimpleCNN 和 3 epochs 条件下，加入数据增强后，测试准确率从 98.35% 下降到 98.18%。
+- 下降幅度为 98.35% - 98.18% = 0.17 个百分点，说明当前增强设置没有带来提升。
+- 可能原因是 MNIST 数据集本身较简单且干净，无增强 baseline 的准确率已经较高。
+- 数据增强增加了训练难度，3 epochs 可能不足以让模型充分适应增强数据。
+- 不能因此简单认为数据增强无效；更严谨的实验可以增加 epochs 或调整增强强度，继续比较有无数据增强的效果。

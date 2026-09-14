@@ -1,26 +1,34 @@
 """读取每轮训练记录，用两个子图展示损失和测试准确率。"""
 
+import argparse
 import csv
-from pathlib import Path
 
 import matplotlib.pyplot as plt
 
 
-# 与 main.py 使用同一个路径，从其他目录运行也能找到记录。
-HISTORY_PATH = Path(__file__).resolve().parent / "training_history.csv"
+# 复用训练脚本的命名规则；导入 main.py 不会启动训练或下载数据。
+from main import get_history_path
 
 
 def main():
-    if not HISTORY_PATH.is_file():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
+                        help="模型结构（默认：simple）")
+    parser.add_argument("--augment", action="store_true", help="读取数据增强实验的训练记录")
+    args = parser.parse_args()
+    # 模型结构和增强开关一起决定读取哪个 CSV，默认读取 simple 不增强的记录。
+    history_path = get_history_path(args.model, args.augment)
+    if not history_path.is_file():
         print(
-            f"找不到训练记录：{HISTORY_PATH}\n"
-            "请先运行 python main.py --epochs 3 生成 training_history.csv。"
+            f"找不到训练记录：{history_path}\n"
+            f"请先运行 python main.py --model {args.model} --epochs 3"
+            f"{' --augment' if args.augment else ''} 生成 {history_path.name}。"
         )
         return
 
     # CSV 中保存的是文本，绘图前需要转换成整数或浮点数。
     try:
-        with HISTORY_PATH.open(newline="", encoding="utf-8") as history_file:
+        with history_path.open(newline="", encoding="utf-8") as history_file:
             rows = list(csv.DictReader(history_file))
         epochs = [int(row["epoch"]) for row in rows]
         losses = [float(row["avg_train_loss"]) for row in rows]
@@ -30,7 +38,7 @@ def main():
         return
 
     if not rows:
-        print("training_history.csv 中没有训练记录，请先完成至少一个 epoch 的训练。")
+        print(f"{history_path.name} 中没有训练记录，请先完成至少一个 epoch 的训练。")
         return
 
     # 一张图中放两个子图，方便同时观察损失和准确率。

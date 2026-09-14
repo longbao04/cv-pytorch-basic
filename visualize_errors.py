@@ -16,8 +16,10 @@ def main():
     # 与训练脚本使用相同的模型名称，默认选择 simple。
     parser.add_argument("--model", choices=["simple", "deeper"], default="simple",
                         help="模型结构（默认：simple）")
+    # 此开关只选择增强训练得到的参数；预测图片不做随机增强。
+    parser.add_argument("--augment", action="store_true", help="加载数据增强训练的模型")
     args = parser.parse_args()
-    model_path = get_model_path(args.model)
+    model_path = get_model_path(args.model, args.augment)
 
     # Apple Silicon Mac 优先使用 MPS；不可用时自动使用 CPU。
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -27,13 +29,14 @@ def main():
     if not model_path.is_file():
         parser.error(
             f"找不到模型参数：{model_path}。"
-            f"请先运行 python main.py --model {args.model} 训练并保存模型。"
+            f"请先运行 python main.py --model {args.model}"
+            f"{' --augment' if args.augment else ''} 训练并保存模型。"
         )
     model = build_model(args.model).to(device)
     model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
     model.eval()  # 切换到评估模式，使用模型进行预测。
 
-    # 使用与训练相同的预处理，缺少数据时只下载 MNIST 数据集。
+    # 测试集只转换和归一化，不做随机增强；缺少数据时只下载 MNIST 数据集。
     data_dir = Path(__file__).resolve().parent / "data"
     test_dataset = datasets.MNIST(
         root=str(data_dir), train=False, download=True, transform=build_transform()
