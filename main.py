@@ -1,6 +1,7 @@
 """PyTorch 入门：用简单 CNN 识别 MNIST 手写数字。"""
 
 import argparse
+import csv
 from pathlib import Path
 
 import torch
@@ -11,6 +12,7 @@ from torchvision import datasets, transforms
 
 # 保存和加载都使用脚本旁的路径，避免工作目录不同导致找不到模型。
 MODEL_PATH = Path(__file__).resolve().parent / "mnist_cnn.pth"
+HISTORY_PATH = Path(__file__).resolve().parent / "training_history.csv"
 
 
 def build_transform():
@@ -48,6 +50,7 @@ class SimpleCNN(nn.Module):
 
 def train_one_epoch(model, loader, criterion, optimizer, device, epoch, epochs):
     model.train()
+    total_loss, total_samples = 0.0, 0
     for batch_index, (images, labels) in enumerate(loader, start=1):
         # 图片、标签和模型必须放在同一个设备上。
         images, labels = images.to(device), labels.to(device)
@@ -57,12 +60,18 @@ def train_one_epoch(model, loader, criterion, optimizer, device, epoch, epochs):
         loss.backward()  # 反向传播：计算参数的梯度。
         optimizer.step()  # 根据梯度更新模型参数。
 
+        # loss 是当前 batch 的平均值，乘以图片数后累加。
+        # 最后除以总图片数，让不足一个 batch 的最后一批也得到正确权重。
+        total_loss += loss.item() * labels.size(0)
+        total_samples += labels.size(0)
+
         if batch_index == 1 or batch_index % 100 == 0 or batch_index == len(loader):
             print(
                 f"Epoch {epoch}/{epochs} | Batch {batch_index}/{len(loader)} "
                 f"| Loss: {loss.item():.4f}",
                 flush=True,
             )
+    return total_loss / total_samples
 
 
 def evaluate(model, loader, device):
@@ -110,11 +119,30 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮继续更新同一个模型，完成指定轮数后再测试和保存。
-    for epoch in range(1, args.epochs + 1):
-        train_one_epoch(model, train_loader, criterion, optimizer, device, epoch, args.epochs)
-    accuracy = evaluate(model, test_loader, device)
-    print(f"测试集 Accuracy：{accuracy:.2%}")
+    # 每轮训练后测试，并写入 CSV；再次训练会覆盖上一次的记录。
+    with HISTORY_PATH.open("w", newline="", encoding="utf-8") as history_file:
+        writer = csv.DictWriter(
+            history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]
+        )
+        writer.writeheader()
+        for epoch in range(1, args.epochs + 1):
+            avg_train_loss = train_one_epoch(
+                model, train_loader, criterion, optimizer, device, epoch, args.epochs
+            )
+            accuracy = evaluate(model, test_loader, device)
+            # 准确率保存为 0～1 的小数，终端显示时转换为百分比。
+            writer.writerow({
+                "epoch": epoch,
+                "avg_train_loss": avg_train_loss,
+                "test_accuracy": accuracy,
+            })
+            history_file.flush()  # 每轮立即保存，便于查看已完成的训练记录。
+            print(
+                f"Epoch {epoch}/{args.epochs} | Average train loss: {avg_train_loss:.4f} "
+                f"| 测试集 Accuracy：{accuracy:.2%}",
+                flush=True,
+            )
+    print(f"训练记录已保存到：{HISTORY_PATH}")
 
     # 只保存模型参数；预测时先创建相同结构，再加载这些参数。
     torch.save(model.state_dict(), MODEL_PATH)
