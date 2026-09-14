@@ -21,7 +21,7 @@ python -m pip install -r requirements.txt
 
 此步骤会安装 `torch`、`torchvision` 及它们所需的依赖。
 
-## 3. 运行
+## 3. 训练并保存模型
 
 ```bash
 python main.py
@@ -33,14 +33,37 @@ python main.py
 
 程序先打印使用的设备，再在第一个 batch、每 100 个 batch 和最后一个 batch 打印 loss，训练结束后输出测试集 accuracy（正确预测数 / 测试图片总数）。具体数值会随设备和运行情况变化。
 
+训练完成后，模型参数会保存到 `main.py` 所在目录的 `mnist_cnn.pth`；再次训练会覆盖该文件。该文件已加入 `.gitignore`，不会上传到 Git 仓库。
+
+## 4. 单张图片预测
+
+先完成训练，再将图片路径作为命令行参数传入：
+
+```bash
+python predict.py path/to/image.png
+```
+
+路径包含空格时请加引号，例如 `python predict.py "my images/digit.png"`。
+
+脚本从项目目录加载 `mnist_cnn.pth`，复用 `main.py` 中的 CNN 结构和 transform，使用 CPU 预测。图片会转为灰度图、缩放至 28×28，再转换为张量并按训练时的方式归一化。预测不会下载数据或运行训练。
+
+图片应尽量使用与 MNIST 相似的黑色背景、浅色数字，且只包含一个居中的手写数字；图片风格不同可能影响准确率。
+
+输出示例（具体数字取决于输入图片）：
+
+```text
+Predicted digit: 7
+```
+
 ## 代码流程
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
 2. 使用两层卷积提取图像特征，通过池化缩小特征图，再用全连接层输出 10 个类别的分数。
 3. 使用交叉熵损失和 Adam 优化器，完整训练一次训练集。
 4. 关闭梯度计算，在独立测试集上统计准确率。
+5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
-`main.py` 包含中文注释，可以从 `main()` 开始阅读。训练结束后不会保存模型文件。
+`main.py` 和 `predict.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
 
 退出虚拟环境：
 

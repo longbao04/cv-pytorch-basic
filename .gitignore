@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 data/
+mnist_cnn.pth
+sample_digit.png

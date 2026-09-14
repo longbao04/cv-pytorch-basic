@@ -8,6 +8,18 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
 
+# 保存和加载都使用脚本旁的路径，避免工作目录不同导致找不到模型。
+MODEL_PATH = Path(__file__).resolve().parent / "mnist_cnn.pth"
+
+
+def build_transform():
+    """训练和预测共用相同的张量转换与归一化操作。"""
+    return transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,)),
+    ])
+
+
 class SimpleCNN(nn.Module):
     """输入为单通道 28×28 图片，输出为数字 0～9 的分类分数。"""
 
@@ -72,10 +84,7 @@ def main():
     print(f"使用设备：{device}", flush=True)
 
     # 将灰度图片转为 [1, 28, 28] 张量，并将像素值从 [0, 1] 归一化到 [-1, 1]。
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,)),
-    ])
+    transform = build_transform()
     # 数据保存在脚本旁的 data 目录；已有数据时不会重复下载。
     data_dir = Path(__file__).resolve().parent / "data"
     train_dataset = datasets.MNIST(
@@ -96,6 +105,10 @@ def main():
     train_one_epoch(model, train_loader, criterion, optimizer, device)
     accuracy = evaluate(model, test_loader, device)
     print(f"测试集 Accuracy：{accuracy:.2%}")
+
+    # 只保存模型参数；预测时先创建相同结构，再加载这些参数。
+    torch.save(model.state_dict(), MODEL_PATH)
+    print(f"模型参数已保存到：{MODEL_PATH}")
 
 
 if __name__ == "__main__":
