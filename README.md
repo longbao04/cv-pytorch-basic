@@ -67,6 +67,18 @@ python visualize_predictions.py
 
 程序使用 matplotlib 显示测试集前 16 张图片，排列为 4×4 网格。每张图片的标题显示 `True: 真实标签, Pred: 预测标签`；预测错误时额外标注 `WRONG`。关闭图片窗口即可结束程序。
 
+## 6. 可视化预测错误的样本
+
+确保项目目录中已有 `mnist_cnn.pth`，在已激活的虚拟环境中运行：
+
+```bash
+python visualize_errors.py
+```
+
+脚本加载 `main.py` 中的 `SimpleCNN` 和已有模型参数，复用训练时的预处理，自动选择 `mps` 或 `cpu`，不会重新训练模型。缺少数据时只下载 MNIST 数据集，并保存在项目的 `data/` 目录。
+
+程序完整遍历 MNIST 测试集，打印预测错误的总数，按测试集原始顺序显示前 16 个错误样本。matplotlib 窗口使用 4×4 网格，每张图片标题为 `True: 真实标签, Pred: 预测标签`。不足 16 个错误样本时，剩余位置留空；没有错误样本时打印提示并结束。关闭图片窗口即可结束程序。
+
 ## 代码流程
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
@@ -75,7 +87,7 @@ python visualize_predictions.py
 4. 关闭梯度计算，在独立测试集上统计准确率。
 5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
-`main.py`、`predict.py` 和 `visualize_predictions.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
+`main.py`、`predict.py`、`visualize_predictions.py` 和 `visualize_errors.py` 均包含中文注释，可以从各自的 `main()` 开始阅读。
 
 退出虚拟环境：
 
