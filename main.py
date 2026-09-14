@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+from decimal import Decimal
 from pathlib import Path
 
 import torch
@@ -14,16 +15,22 @@ from torchvision import datasets, transforms
 PROJECT_DIR = Path(__file__).resolve().parent
 
 
-def get_model_path(model_name, augment=False):
-    """按模型结构和增强开关区分参数文件，避免不同实验互相覆盖。"""
+def format_lr(lr):
+    """把学习率转成文件名片段，例如 0.001 → 0p001。"""
+    # 使用普通小数形式，确保 1e-5 和 0.00001 得到相同文件名。
+    return format(Decimal(str(lr)), "f").replace(".", "p")
+
+
+def get_model_path(model_name, augment=False, lr=0.001):
+    """按模型结构、增强开关和学习率区分参数文件，避免不同实验互相覆盖。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}.pth"
+    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}.pth"
 
 
-def get_history_path(model_name, augment=False):
+def get_history_path(model_name, augment=False, lr=0.001):
     """训练和绘图共用命名规则，每种实验分别保存训练记录。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"training_history_{model_name}{suffix}.csv"
+    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}.csv"
 
 
 def build_transform(augment=False):
@@ -153,9 +160,18 @@ def main():
     parser.add_argument("--epochs", type=int, default=1, help="训练轮数（默认：1）")
     # store_true 表示只有传入 --augment 才开启，默认值为 False。
     parser.add_argument("--augment", action="store_true", help="开启训练集轻量数据增强")
+    # 学习率决定训练时每次参数更新的步长，也用于区分实验文件。
+    parser.add_argument("--lr", type=float, default=0.001,
+                        help="训练学习率（默认：0.001）")
     args = parser.parse_args()
     if args.epochs < 1:
         parser.error("--epochs 必须是大于或等于 1 的整数")
+
+    print(
+        f"训练配置：model={args.model} | epochs={args.epochs} "
+        f"| augment={args.augment} | lr={args.lr}",
+        flush=True,
+    )
 
     torch.manual_seed(42)
     # Apple Silicon Mac 优先使用 MPS；不可用时自动使用 CPU。
@@ -179,14 +195,13 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
 
     model = build_model(args.model).to(device)
-    model_path = get_model_path(args.model, args.augment)
-    history_path = get_history_path(args.model, args.augment)
-    print(f"使用模型：{args.model} | 数据增强：{args.augment}", flush=True)
+    model_path = get_model_path(args.model, args.augment, args.lr)
+    history_path = get_history_path(args.model, args.augment, args.lr)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮训练后测试，并写入 CSV；再次训练相同模型和增强设置会覆盖该实验的记录。
+    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置和学习率会覆盖该实验的记录。
     with history_path.open("w", newline="", encoding="utf-8") as history_file:
         writer = csv.DictWriter(
             history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]

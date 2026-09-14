@@ -43,13 +43,22 @@ python main.py --model simple --epochs 3 --augment
 
 `--augment` 默认关闭。开启后，仅训练集加入 `RandomRotation(10)`（最多旋转 10 度）和 `RandomAffine(degrees=0, translate=(0.1, 0.1))`（最多平移宽高的 10%），然后执行 `ToTensor` 和 `Normalize`。测试集和预测图片始终只执行 `ToTensor` 和 `Normalize`，方便比较同一模型有无增强的效果。`deeper` 也可以添加 `--augment`。
 
+学习率 `--lr` 默认是 `0.001`，Adam 优化器使用此值。保持模型、增强开关和训练轮数一致，可以比较不同学习率的效果：
+
+```bash
+python main.py --model simple --epochs 3 --lr 0.0005
+python main.py --model simple --epochs 3 --lr 0.005
+```
+
+训练开始时会打印 `model`、`epochs`、`augment` 和 `lr`。
+
 训练 deeper 模型 3 个 epochs：
 
 ```bash
 python main.py --model deeper --epochs 3
 ```
 
-`SimpleCNN` 使用两层卷积；`DeeperCNN` 在每次池化前使用两层卷积，共四层卷积。两种模型使用相同的全连接层、预处理、优化器和学习率，便于比较模型结构的影响。`--model` 仅支持 `simple` / `deeper`，省略时使用 `simple`。
+`SimpleCNN` 使用两层卷积；`DeeperCNN` 在每次池化前使用两层卷积，共四层卷积。两种模型使用相同的全连接层、预处理和优化器，默认学习率均为 `0.001`，便于比较模型结构的影响。`--model` 仅支持 `simple` / `deeper`，省略时使用 `simple`。
 
 `--epochs` 必须是大于或等于 1 的整数。可以在 [experiment_notes.md](experiment_notes.md) 中记录训练轮数实验和模型结构对比实验的结果。
 
@@ -57,18 +66,22 @@ python main.py --model deeper --epochs 3
 
 程序自动检查 `torch.backends.mps.is_available()`：可用时使用 `mps`，否则使用 `cpu`。运行速度取决于电脑性能。
 
-程序先打印使用的设备，再在第一个 batch、每 100 个 batch 和最后一个 batch 打印 loss。每个 epoch 结束后，输出按图片数加权的平均训练损失和测试集 accuracy（正确预测数 / 测试图片总数）。具体数值会随设备和运行情况变化。
+程序打印当前训练配置和使用的设备，再在第一个 batch、每 100 个 batch 和最后一个 batch 打印 loss。每个 epoch 结束后，输出按图片数加权的平均训练损失和测试集 accuracy（正确预测数 / 测试图片总数）。具体数值会随设备和运行情况变化。
 
 每个 epoch 的结果会立即写入对应的 CSV，字段为 `epoch`（轮数）、`avg_train_loss`（平均训练损失）、`test_accuracy`（0～1 的准确率小数，例如 0.98 表示 98%）。训练完成后保存模型参数，文件均位于脚本所在目录：
 
+以下为默认学习率 `0.001` 的文件名：
+
 | --model | --augment | 模型文件 | 训练记录 |
 | --- | --- | --- | --- |
-| simple | 不传 | mnist_cnn_simple.pth | training_history_simple.csv |
-| deeper | 不传 | mnist_cnn_deeper.pth | training_history_deeper.csv |
-| simple | 传入 | mnist_cnn_simple_aug.pth | training_history_simple_aug.csv |
-| deeper | 传入 | mnist_cnn_deeper_aug.pth | training_history_deeper_aug.csv |
+| simple | 不传 | mnist_cnn_simple_lr0p001.pth | training_history_simple_lr0p001.csv |
+| deeper | 不传 | mnist_cnn_deeper_lr0p001.pth | training_history_deeper_lr0p001.csv |
+| simple | 传入 | mnist_cnn_simple_aug_lr0p001.pth | training_history_simple_aug_lr0p001.csv |
+| deeper | 传入 | mnist_cnn_deeper_aug_lr0p001.pth | training_history_deeper_aug_lr0p001.csv |
 
-再次训练相同模型和增强设置，会覆盖对应的模型和 CSV；不同设置的文件互不覆盖。模型文件和所有 `training_history*.csv` 均已加入 `.gitignore`。旧的 `mnist_cnn.pth` 和 `training_history.csv` 不会自动加载，请根据新命名规则选择文件。每次实验后，可将最后一轮结果填入 [experiment_notes.md](experiment_notes.md)。
+文件名同时包含模型、增强开关和学习率，小数点写成 `p`。例如 `--lr 0.0005` 保存为 `mnist_cnn_simple_lr0p0005.pth` 和 `training_history_simple_lr0p0005.csv`；`--lr 0.005` 保存为 `mnist_cnn_simple_lr0p005.pth` 和 `training_history_simple_lr0p005.csv`。
+
+再次训练相同模型、增强设置和学习率，会覆盖对应的模型和 CSV；不同设置的文件互不覆盖。模型文件和所有 `training_history*.csv` 均已加入 `.gitignore`。旧的不含学习率的模型和训练记录文件不会自动加载，请根据新命名规则选择文件。每次实验后，可将最后一轮结果填入 [experiment_notes.md](experiment_notes.md)。
 
 ## 4. 绘制训练曲线
 
@@ -76,11 +89,13 @@ python main.py --model deeper --epochs 3
 
 ```bash
 python plot_training_curve.py --model simple
-# 查看增强模型的曲线，读取 training_history_simple_aug.csv：
+# 查看学习率 0.0005 的训练曲线：
+python plot_training_curve.py --model simple --lr 0.0005
+# 查看增强模型的曲线，读取 training_history_simple_aug_lr0p001.csv：
 python plot_training_curve.py --model simple --augment
 ```
 
-脚本根据 `--model` 和 `--augment` 读取对应记录，默认读取 `training_history_simple.csv`，使用 matplotlib 在一张图的两个子图中展示平均训练损失和测试准确率随 epoch 的变化。关闭图形窗口即可结束程序。如果记录文件不存在或没有训练记录，脚本会给出清楚提示。绘图只读取 CSV，不训练模型或下载数据。
+脚本根据 `--model`、`--augment` 和 `--lr` 读取对应记录，默认读取 `training_history_simple_lr0p001.csv`，使用 matplotlib 在一张图的两个子图中展示平均训练损失和测试准确率随 epoch 的变化。关闭图形窗口即可结束程序。如果记录文件不存在或没有训练记录，脚本会给出清楚提示。绘图只读取 CSV，不训练模型或下载数据。
 
 ## 5. 单张图片预测
 
@@ -92,15 +107,15 @@ python predict.py path/to/image.png
 
 路径包含空格时请加引号，例如 `python predict.py "my images/digit.png"`。
 
-默认加载项目目录中的 `mnist_cnn_simple.pth`；使用 deeper 预测：
+默认加载项目目录中的 `mnist_cnn_simple_lr0p001.pth`；使用 deeper 预测：
 
 ```bash
 python predict.py sample_digit.png --model deeper
-# 加载 mnist_cnn_simple_aug.pth：
+# 加载 mnist_cnn_simple_aug_lr0p001.pth：
 python predict.py sample_digit.png --model simple --augment
 ```
 
-脚本根据 `--model` 选择 CNN 结构，根据 `--augment` 选择普通或增强模型文件，复用 `main.py` 中不含随机增强的 transform，使用 CPU 预测。模型文件缺失时会提示文件路径和对应的训练命令。图片会转为灰度图、缩放至 28×28，再转换为张量并按训练时的方式归一化。预测不会下载数据或运行训练。
+脚本根据 `--model` 选择 CNN 结构，根据 `--augment` 和 `--lr` 选择对应实验的模型文件，复用 `main.py` 中不含随机增强的 transform，使用 CPU 预测。模型文件缺失时会提示文件路径和对应的训练命令。图片会转为灰度图、缩放至 28×28，再转换为张量并按训练时的方式归一化。预测不会下载数据或运行训练。
 
 图片应尽量使用与 MNIST 相似的黑色背景、浅色数字，且只包含一个居中的手写数字；图片风格不同可能影响准确率。
 
@@ -110,9 +125,20 @@ python predict.py sample_digit.png --model simple --augment
 Predicted digit: 7
 ```
 
+预测和以下三个分析脚本都支持 `--lr`（默认 `0.001`），应与训练时一致。例如：
+
+```bash
+python predict.py sample_digit.png --model simple --lr 0.0005
+python visualize_predictions.py --model simple --lr 0.0005
+python visualize_errors.py --model simple --lr 0.0005
+python confusion_matrix.py --model simple --lr 0.0005
+```
+
+增强实验还需添加 `--augment`。缺少对应模型时会提示具体路径及包含学习率的训练命令。
+
 ## 6. 可视化模型预测结果
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple.pth`），然后运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001.pth`），然后运行：
 
 ```bash
 python visualize_predictions.py
@@ -122,13 +148,13 @@ python visualize_predictions.py --model deeper
 python visualize_predictions.py --model simple --augment
 ```
 
-脚本根据 `--model` 选择 `main.py` 中的模型结构，根据 `--augment` 选择普通或增强模型文件，复用预处理并加载对应参数文件，自动选择 `mps` 或 `cpu`，不会重新训练模型。MNIST 数据保存在项目的 `data/` 目录；缺少数据时只下载 MNIST 数据集。
+脚本根据 `--model` 选择 `main.py` 中的模型结构，根据 `--augment` 和 `--lr` 选择对应实验的模型文件，复用预处理并加载对应参数文件，自动选择 `mps` 或 `cpu`，不会重新训练模型。MNIST 数据保存在项目的 `data/` 目录；缺少数据时只下载 MNIST 数据集。
 
 程序使用 matplotlib 显示测试集前 16 张图片，排列为 4×4 网格。每张图片的标题显示 `True: 真实标签, Pred: 预测标签`；预测错误时额外标注 `WRONG`。关闭图片窗口即可结束程序。
 
 ## 7. 可视化预测错误的样本
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple.pth`），在已激活的虚拟环境中运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001.pth`），在已激活的虚拟环境中运行：
 
 ```bash
 python visualize_errors.py
@@ -138,13 +164,13 @@ python visualize_errors.py --model deeper
 python visualize_errors.py --model simple --augment
 ```
 
-脚本根据 `--model` 和 `--augment` 加载 `main.py` 中的对应模型结构和参数文件，使用不含随机增强的测试集预处理，自动选择 `mps` 或 `cpu`，不会重新训练模型。缺少数据时只下载 MNIST 数据集，并保存在项目的 `data/` 目录。
+脚本根据 `--model`、`--augment` 和 `--lr` 加载 `main.py` 中的对应模型结构和参数文件，使用不含随机增强的测试集预处理，自动选择 `mps` 或 `cpu`，不会重新训练模型。缺少数据时只下载 MNIST 数据集，并保存在项目的 `data/` 目录。
 
 程序完整遍历 MNIST 测试集，打印预测错误的总数，按测试集原始顺序显示前 16 个错误样本。matplotlib 窗口使用 4×4 网格，每张图片标题为 `True: 真实标签, Pred: 预测标签`。不足 16 个错误样本时，剩余位置留空；没有错误样本时打印提示并结束。关闭图片窗口即可结束程序。
 
 ## 8. 混淆矩阵分析
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple.pth`），在已激活的虚拟环境中运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001.pth`），在已激活的虚拟环境中运行：
 
 ```bash
 python confusion_matrix.py
@@ -154,7 +180,7 @@ python confusion_matrix.py --model deeper
 python confusion_matrix.py --model simple --augment
 ```
 
-脚本根据 `--model` 和 `--augment` 加载对应模型结构和参数文件，自动选择 `mps` 或 `cpu`，完整遍历 MNIST 测试集，不会重新训练模型。缺少数据时只下载 MNIST 数据集到项目的 `data/` 目录；模型参数文件不存在时会给出清楚提示。
+脚本根据 `--model`、`--augment` 和 `--lr` 加载对应模型结构和参数文件，自动选择 `mps` 或 `cpu`，完整遍历 MNIST 测试集，不会重新训练模型。缺少数据时只下载 MNIST 数据集到项目的 `data/` 目录；模型参数文件不存在时会给出清楚提示。
 
 混淆矩阵的行是真实标签（True label），列是模型预测标签（Predicted label）。10×10 热力图的每个格子显示对应的样本数量：对角线表示正确分类，其他位置表示预测错误。终端按数量从高到低打印最容易混淆的前 10 个错误类别对，例如 `True 5 -> Pred 3: 12 samples`，不包含正确分类；不足 10 对时显示全部。关闭图形窗口即可结束程序。
 

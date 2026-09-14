@@ -18,14 +18,17 @@ def main():
                         help="模型结构（默认：simple）")
     # 此开关只选择增强训练得到的参数；预测图片不做随机增强。
     parser.add_argument("--augment", action="store_true", help="加载数据增强训练的模型")
+    # 学习率决定训练时每次参数更新的步长，也用于区分实验文件。
+    parser.add_argument("--lr", type=float, default=0.001,
+                        help="训练学习率（默认：0.001）")
     args = parser.parse_args()
-    model_path = get_model_path(args.model, args.augment)
+    model_path = get_model_path(args.model, args.augment, args.lr)
 
     if not model_path.is_file():
         parser.error(
             f"找不到模型参数：{model_path}。"
             f"请先运行 python main.py --model {args.model}"
-            f"{' --augment' if args.augment else ''} 训练并保存模型。"
+            f"{' --augment' if args.augment else ''} --lr {args.lr} 训练并保存模型。"
         )
     if not args.image_path.is_file():
         parser.error(f"找不到图片：{args.image_path}")

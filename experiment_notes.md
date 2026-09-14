@@ -49,7 +49,7 @@ python main.py --model simple --epochs 3
 python main.py --model deeper --epochs 3
 ```
 
-各模型的记录分别保存在 `training_history_simple.csv` 和 `training_history_deeper.csv`；再次训练相同模型和增强设置会覆盖对应文件，请及时记录结果。`avg final loss` 填最后一轮的 Average train loss（CSV 中最后一行的 `avg_train_loss`），不是最后一个 batch 的 loss；`test accuracy` 填最后一轮测试准确率，CSV 中的小数可转换为百分比。
+各模型的记录分别保存在 `training_history_simple_lr0p001.csv` 和 `training_history_deeper_lr0p001.csv`；再次训练相同模型、增强设置和学习率会覆盖对应文件，请及时记录结果。`avg final loss` 填最后一轮的 Average train loss（CSV 中最后一行的 `avg_train_loss`），不是最后一个 batch 的 loss；`test accuracy` 填最后一轮测试准确率，CSV 中的小数可转换为百分比。
 
 使用 `python visualize_errors.py --model simple` 和 `python visualize_errors.py --model deeper` 查看各自错误样本，也可用 `python confusion_matrix.py --model deeper` 分析 deeper 的混淆情况，再填写实际观察与结论。
 
@@ -86,7 +86,7 @@ python plot_training_curve.py --model simple --augment
 python confusion_matrix.py --model simple --augment
 ```
 
-普通和增强实验分别保存到 `training_history_simple.csv` 与 `training_history_simple_aug.csv`。test accuracy 填最后一轮的测试集 Accuracy；观察可结合曲线、混淆矩阵或 `python visualize_errors.py --model simple --augment` 的错误样本填写。数据增强是否改善效果，应根据实际结果得出结论。
+普通和增强实验分别保存到 `training_history_simple_lr0p001.csv` 与 `training_history_simple_aug_lr0p001.csv`。test accuracy 填最后一轮的测试集 Accuracy；观察可结合曲线、混淆矩阵或 `python visualize_errors.py --model simple --augment` 的错误样本填写。数据增强是否改善效果，应根据实际结果得出结论。
 
 ### 实验结论
 
@@ -95,3 +95,37 @@ python confusion_matrix.py --model simple --augment
 - 可能原因是 MNIST 数据集本身较简单且干净，无增强 baseline 的准确率已经较高。
 - 数据增强增加了训练难度，3 epochs 可能不足以让模型充分适应增强数据。
 - 不能因此简单认为数据增强无效；更严谨的实验可以增加 epochs 或调整增强强度，继续比较有无数据增强的效果。
+
+## 学习率实验
+
+### 实验目的
+
+比较不同 learning rate 对训练效果的影响。保持模型为 SimpleCNN、augment=False、epochs=3，只改变学习率，观察训练损失、测试准确率和收敛情况。
+
+### 实验结果
+
+| model | augment | epochs | lr | avg final loss | test accuracy | 观察 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| SimpleCNN | False | 3 | 0.001 | | 98.35% | | baseline |
+| SimpleCNN | False | 3 | 0.0005 | 0.0700 | 98.22% | | 准确率低于 baseline。 |
+| SimpleCNN | False | 3 | 0.005 | 0.0368 | 98.37% | | 准确率略高于 baseline，但差异非常小。 |
+
+以上结果来自已有实验记录；未提供的 baseline 平均训练损失和训练曲线观察留空。`avg final loss` 填写最后一轮的 Average train loss，不是最后一个 batch 的 loss。
+
+```bash
+python main.py --model simple --epochs 3 --lr 0.0005
+python main.py --model simple --epochs 3 --lr 0.005
+python plot_training_curve.py --model simple --lr 0.0005
+python plot_training_curve.py --model simple --lr 0.005
+```
+
+test accuracy 填写最后一轮测试集 Accuracy。结合各自训练曲线填写观察和结论；不同学习率分别保存文件，相同模型、增强设置和学习率再次训练会覆盖对应记录。
+
+### 实验结论
+
+- lr=0.0005 的准确率为 98.22%，低于 baseline（lr=0.001）的 98.35%。
+- lr=0.005 的准确率为 98.37%，略高于 baseline 的 98.35%。
+- lr=0.005 只提升了 98.37% - 98.35% = 0.02 个百分点，差异非常小，不能说明它明显更优。
+- lr=0.0005 可能因为学习率较小，3 epochs 内参数更新更保守，所以效果略低。
+- 学习率会影响训练速度和稳定性。
+- 更严谨的实验应该多次重复运行，记录平均 accuracy 和标准差。
