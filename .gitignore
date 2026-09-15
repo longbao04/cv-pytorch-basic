@@ -9,6 +9,6 @@ training_history.csv
 sample_digit.png
 mnist_cnn_simple_aug.pth
 mnist_cnn_deeper_aug.pth
-# 忽略所有实验记录和模型参数，包括按学习率、batch size 区分的文件。
+# 忽略所有实验记录和模型参数，包括按学习率、batch size、optimizer 区分的文件。
 training_history*.csv
 mnist_cnn_*.pth

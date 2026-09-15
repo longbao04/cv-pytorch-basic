@@ -21,16 +21,16 @@ def format_lr(lr):
     return format(Decimal(str(lr)), "f").replace(".", "p")
 
 
-def get_model_path(model_name, augment=False, lr=0.001, batch_size=128):
-    """按模型结构、增强开关、学习率和批次大小区分参数文件，避免不同实验互相覆盖。"""
+def get_model_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam"):
+    """按模型结构、增强开关、学习率、批次大小和优化器区分参数文件，避免不同实验互相覆盖。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}.pth"
+    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}.pth"
 
 
-def get_history_path(model_name, augment=False, lr=0.001, batch_size=128):
+def get_history_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam"):
     """训练和绘图共用命名规则，每种实验分别保存训练记录。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}.csv"
+    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}.csv"
 
 
 def build_transform(augment=False):
@@ -166,6 +166,9 @@ def main():
     # batch size 表示每批图片的数量，也用于选择对应实验文件。
     parser.add_argument("--batch-size", type=int, default=128,
                         help="训练批次大小（默认：128，必须大于 0）")
+    # 优化器决定如何根据梯度更新参数，也用于区分实验文件。
+    parser.add_argument("--optimizer", choices=["adam", "sgd", "sgd_momentum"],
+                        default="adam", help="训练优化器（默认：adam；sgd_momentum 的 momentum 为 0.9）")
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size 必须是大于或等于 1 的整数")
@@ -174,7 +177,8 @@ def main():
 
     print(
         f"训练配置：model={args.model} | epochs={args.epochs} "
-        f"| augment={args.augment} | lr={args.lr} | batch_size={args.batch_size}",
+        f"| augment={args.augment} | lr={args.lr} | batch_size={args.batch_size} "
+        f"| optimizer={args.optimizer}",
         flush=True,
     )
 
@@ -201,13 +205,20 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
     model = build_model(args.model).to(device)
-    model_path = get_model_path(args.model, args.augment, args.lr, args.batch_size)
-    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size)
+    model_path = get_model_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    # Adam 会自适应调整更新步长；SGD 使用普通梯度下降。
+    # momentum=0.9 让 SGD 累积之前的更新方向，帮助持续向前更新。
+    if args.optimizer == "adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    elif args.optimizer == "sgd":
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr)
+    else:  # argparse 已限定可选值，这里对应 sgd_momentum。
+        optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置、学习率和批次大小会覆盖该实验的记录。
+    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置、学习率、批次大小和优化器会覆盖该实验的记录。
     with history_path.open("w", newline="", encoding="utf-8") as history_file:
         writer = csv.DictWriter(
             history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]

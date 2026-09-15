@@ -21,16 +21,19 @@ def main():
     # batch size 表示每批图片的数量，也用于选择对应实验文件。
     parser.add_argument("--batch-size", type=int, default=128,
                         help="训练批次大小（默认：128，必须大于 0）")
+    # 优化器决定如何根据梯度更新参数，也用于区分实验文件。
+    parser.add_argument("--optimizer", choices=["adam", "sgd", "sgd_momentum"],
+                        default="adam", help="训练优化器（默认：adam；sgd_momentum 的 momentum 为 0.9）")
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size 必须是大于或等于 1 的整数")
-    # 模型结构、增强开关、学习率和批次大小一起决定读取哪个 CSV。
-    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size)
+    # 模型结构、增强开关、学习率、批次大小和优化器一起决定读取哪个 CSV。
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
     if not history_path.is_file():
         print(
             f"找不到训练记录：{history_path}\n"
             f"请先运行 python main.py --model {args.model} --epochs 3"
-            f"{' --augment' if args.augment else ''} --lr {args.lr} --batch-size {args.batch_size} 生成 {history_path.name}。"
+            f"{' --augment' if args.augment else ''} --lr {args.lr} --batch-size {args.batch_size} --optimizer {args.optimizer} 生成 {history_path.name}。"
         )
         return
 

@@ -164,3 +164,39 @@ test accuracy 填写最后一轮测试集 Accuracy。训练记录和模型文件
 - batch_size 较小时，每个 epoch 中参数更新次数更多，可能带来更充分的训练。
 - batch_size 较大时，更新更稳定，但每个 epoch 更新次数更少。
 - 单次实验结果会受到随机初始化和数据顺序影响，更严谨的实验需要多次运行，计算准确率的平均值和标准差。
+
+
+## Optimizer 优化器实验
+
+### 实验目的
+
+比较不同优化器对训练效果的影响。保持模型为 SimpleCNN、augment=False、epochs=3、lr=0.001、batch_size=64，只改变 optimizer，观察测试准确率和训练曲线的变化。sgd_momentum 使用 momentum=0.9。
+
+### 实验结果
+
+| model | augment | epochs | lr | batch_size | optimizer | avg final loss | test accuracy | 观察 | 结论 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| SimpleCNN | False | 3 | 0.001 | 64 | adam | | 98.55% | | 当前设置下测试准确率最高。 |
+| SimpleCNN | False | 3 | 0.001 | 64 | sgd | 1.8527 | 71.53% | | 准确率明显低于 Adam。 |
+| SimpleCNN | False | 3 | 0.001 | 64 | sgd_momentum | 0.1587 | 96.37% | | 相比普通 SGD 大幅提升，但仍低于 Adam。 |
+
+以上结果来自已有实验记录，本次未重新训练。`avg final loss` 记录最后一轮的 Average train loss，不是最后一个 batch 的 loss；本次未提供 Adam 的平均训练损失和各优化器的训练曲线观察，留空。
+
+```bash
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer adam
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer sgd
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+python plot_training_curve.py --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+```
+
+test accuracy 填写最后一轮测试集 Accuracy。绘图时将 `--optimizer` 改为对应实验值，结合损失下降速度和测试准确率填写观察与结论。文件名包含 optimizer，相同配置再次训练会覆盖对应文件，请及时记录结果。
+
+### 实验结论
+
+- 在当前设置下，Adam 的测试准确率最高，为 98.55%。
+- 普通 SGD 的准确率只有 71.53%，明显低于 Adam。
+- SGD + momentum 的准确率为 96.37%，相比普通 SGD 提升了 24.84 个百分点，有大幅提升。
+- 这一结果说明 momentum 可以帮助 SGD 更快、更稳定地优化；具体收敛速度和稳定性还需结合训练曲线验证。
+- 但 SGD + momentum 的准确率仍低于 Adam，差距为 2.18 个百分点。
+- 普通 SGD 表现差可能是因为 lr=0.001 对 SGD 来说偏小，3 epochs 内训练不充分。
+- 更严谨的实验可以给 SGD 单独调大学习率，例如 lr=0.01，再比较效果。

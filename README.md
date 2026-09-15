@@ -77,20 +77,48 @@ python main.py --model deeper --epochs 3
 
 每个 epoch 的结果会立即写入对应的 CSV，字段为 `epoch`（轮数）、`avg_train_loss`（平均训练损失）、`test_accuracy`（0～1 的准确率小数，例如 0.98 表示 98%）。训练完成后保存模型参数，文件均位于脚本所在目录：
 
-以下为默认学习率 `0.001`、batch size `128` 的文件名：
+以下为默认学习率 `0.001`、batch size `128`、optimizer `adam` 的文件名：
 
 | --model | --augment | 模型文件 | 训练记录 |
 | --- | --- | --- | --- |
-| simple | 不传 | mnist_cnn_simple_lr0p001_bs128.pth | training_history_simple_lr0p001_bs128.csv |
-| deeper | 不传 | mnist_cnn_deeper_lr0p001_bs128.pth | training_history_deeper_lr0p001_bs128.csv |
-| simple | 传入 | mnist_cnn_simple_aug_lr0p001_bs128.pth | training_history_simple_aug_lr0p001_bs128.csv |
-| deeper | 传入 | mnist_cnn_deeper_aug_lr0p001_bs128.pth | training_history_deeper_aug_lr0p001_bs128.csv |
+| simple | 不传 | mnist_cnn_simple_lr0p001_bs128_adam.pth | training_history_simple_lr0p001_bs128_adam.csv |
+| deeper | 不传 | mnist_cnn_deeper_lr0p001_bs128_adam.pth | training_history_deeper_lr0p001_bs128_adam.csv |
+| simple | 传入 | mnist_cnn_simple_aug_lr0p001_bs128_adam.pth | training_history_simple_aug_lr0p001_bs128_adam.csv |
+| deeper | 传入 | mnist_cnn_deeper_aug_lr0p001_bs128_adam.pth | training_history_deeper_aug_lr0p001_bs128_adam.csv |
 
-文件名同时包含模型、增强开关、学习率和 batch size，小数点写成 `p`，开启增强时加入 `_aug`，关闭时省略。例如 `--lr 0.0005` 保存为 `mnist_cnn_simple_lr0p0005_bs128.pth` 和 `training_history_simple_lr0p0005_bs128.csv`；`--lr 0.005` 保存为 `mnist_cnn_simple_lr0p005_bs128.pth` 和 `training_history_simple_lr0p005_bs128.csv`。
+文件名同时包含模型、增强开关、学习率、batch size 和 optimizer，小数点写成 `p`，开启增强时加入 `_aug`，关闭时省略。例如 `--lr 0.0005` 保存为 `mnist_cnn_simple_lr0p0005_bs128_adam.pth` 和 `training_history_simple_lr0p0005_bs128_adam.csv`；`--lr 0.005` 保存为 `mnist_cnn_simple_lr0p005_bs128_adam.pth` 和 `training_history_simple_lr0p005_bs128_adam.csv`。
 
-再次训练相同模型、增强设置、学习率和 batch size，会覆盖对应的模型和 CSV；不同设置的文件互不覆盖。模型文件和所有 `training_history*.csv` 均已加入 `.gitignore`。旧的不含学习率或 batch size 的模型和训练记录文件不会自动加载，请根据新命名规则选择文件。每次实验后，可将最后一轮结果填入 [experiment_notes.md](experiment_notes.md)。
+再次训练相同模型、增强设置、学习率、batch size 和 optimizer，会覆盖对应的模型和 CSV；不同设置的文件互不覆盖。模型文件和所有 `training_history*.csv` 均已加入 `.gitignore`。旧的不含学习率、batch size 或 optimizer 的模型和训练记录文件不会自动加载，请根据新命名规则选择文件。每次实验后，可将最后一轮结果填入 [experiment_notes.md](experiment_notes.md)。
 
-batch size 为 `64` 时保存 `mnist_cnn_simple_lr0p001_bs64.pth` 和 `training_history_simple_lr0p001_bs64.csv`；为 `256` 时保存 `mnist_cnn_simple_lr0p001_bs256.pth` 和 `training_history_simple_lr0p001_bs256.csv`。
+batch size 为 `64` 时保存 `mnist_cnn_simple_lr0p001_bs64_adam.pth` 和 `training_history_simple_lr0p001_bs64_adam.csv`；为 `256` 时保存 `mnist_cnn_simple_lr0p001_bs256_adam.pth` 和 `training_history_simple_lr0p001_bs256_adam.csv`。
+
+## Optimizer 优化器实验
+
+`--optimizer` 支持 `adam`、`sgd` 和 `sgd_momentum`，默认值为 `adam`。Adam 使用自适应更新步长；SGD 使用普通梯度下降；SGD + momentum 使用 `momentum=0.9` 累积更新方向。比较时保持其他参数一致，根据实际结果判断训练效果。
+
+```bash
+# Adam：
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer adam
+# SGD：
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer sgd
+# SGD + momentum：
+python main.py --model simple --epochs 3 --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+# 绘制 SGD + momentum 对应的训练曲线：
+python plot_training_curve.py --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+```
+
+上述实验分别生成 `training_history_simple_lr0p001_bs64_adam.csv`、`training_history_simple_lr0p001_bs64_sgd.csv` 和 `training_history_simple_lr0p001_bs64_sgd_momentum.csv`；模型文件分别为 `mnist_cnn_simple_lr0p001_bs64_adam.pth`、`mnist_cnn_simple_lr0p001_bs64_sgd.pth` 和 `mnist_cnn_simple_lr0p001_bs64_sgd_momentum.pth`。开启 `--augment` 时，模型名称后加入 `_aug`。
+
+预测、预测可视化、错误样本和混淆矩阵脚本均支持 `--optimizer`（默认 `adam`），需与训练时一致。例如：
+
+```bash
+python predict.py sample_digit.png --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+python visualize_predictions.py --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+python visualize_errors.py --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+python confusion_matrix.py --model simple --lr 0.001 --batch-size 64 --optimizer sgd_momentum
+```
+
+相同模型、增强开关、学习率、batch size 和 optimizer 再次训练会覆盖对应文件；不同 optimizer 的文件互不覆盖。缺少文件时会提示具体路径和对应训练命令。实验结果填写到 [experiment_notes.md](experiment_notes.md) 的 Optimizer 优化器实验一节。
 
 ## 4. 绘制训练曲线
 
@@ -102,11 +130,11 @@ python plot_training_curve.py --model simple
 python plot_training_curve.py --model simple --lr 0.001 --batch-size 64
 # 查看学习率 0.0005 的训练曲线：
 python plot_training_curve.py --model simple --lr 0.0005
-# 查看增强模型的曲线，读取 training_history_simple_aug_lr0p001_bs128.csv：
+# 查看增强模型的曲线，读取 training_history_simple_aug_lr0p001_bs128_adam.csv：
 python plot_training_curve.py --model simple --augment
 ```
 
-脚本根据 `--model`、`--augment`、`--lr` 和 `--batch-size` 读取对应记录，默认读取 `training_history_simple_lr0p001_bs128.csv`，使用 matplotlib 在一张图的两个子图中展示平均训练损失和测试准确率随 epoch 的变化。关闭图形窗口即可结束程序。如果记录文件不存在或没有训练记录，脚本会给出清楚提示。绘图只读取 CSV，不训练模型或下载数据。
+脚本根据 `--model`、`--augment`、`--lr`、`--batch-size` 和 `--optimizer` 读取对应记录，默认读取 `training_history_simple_lr0p001_bs128_adam.csv`，使用 matplotlib 在一张图的两个子图中展示平均训练损失和测试准确率随 epoch 的变化。关闭图形窗口即可结束程序。如果记录文件不存在或没有训练记录，脚本会给出清楚提示。绘图只读取 CSV，不训练模型或下载数据。
 
 ## 5. 单张图片预测
 
@@ -118,15 +146,15 @@ python predict.py path/to/image.png
 
 路径包含空格时请加引号，例如 `python predict.py "my images/digit.png"`。
 
-默认加载项目目录中的 `mnist_cnn_simple_lr0p001_bs128.pth`；使用 deeper 预测：
+默认加载项目目录中的 `mnist_cnn_simple_lr0p001_bs128_adam.pth`；使用 deeper 预测：
 
 ```bash
 python predict.py sample_digit.png --model deeper
-# 加载 mnist_cnn_simple_aug_lr0p001_bs128.pth：
+# 加载 mnist_cnn_simple_aug_lr0p001_bs128_adam.pth：
 python predict.py sample_digit.png --model simple --augment
 ```
 
-脚本根据 `--model` 选择 CNN 结构，根据 `--augment`、`--lr` 和 `--batch-size` 选择对应实验的模型文件，复用 `main.py` 中不含随机增强的 transform，使用 CPU 预测。模型文件缺失时会提示文件路径和对应的训练命令。图片会转为灰度图、缩放至 28×28，再转换为张量并按训练时的方式归一化。预测不会下载数据或运行训练。
+脚本根据 `--model` 选择 CNN 结构，根据 `--augment`、`--lr`、`--batch-size` 和 `--optimizer` 选择对应实验的模型文件，复用 `main.py` 中不含随机增强的 transform，使用 CPU 预测。模型文件缺失时会提示文件路径和对应的训练命令。图片会转为灰度图、缩放至 28×28，再转换为张量并按训练时的方式归一化。预测不会下载数据或运行训练。
 
 图片应尽量使用与 MNIST 相似的黑色背景、浅色数字，且只包含一个居中的手写数字；图片风格不同可能影响准确率。
 
@@ -154,11 +182,11 @@ python visualize_errors.py --model simple --lr 0.001 --batch-size 64
 python confusion_matrix.py --model simple --lr 0.001 --batch-size 64
 ```
 
-增强实验还需添加 `--augment`。缺少对应模型时会提示具体路径及包含学习率和 batch size 的训练命令。
+增强实验还需添加 `--augment`。缺少对应模型时会提示具体路径及包含学习率、batch size 和 optimizer 的训练命令。
 
 ## 6. 可视化模型预测结果
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128.pth`），然后运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128_adam.pth`），然后运行：
 
 ```bash
 python visualize_predictions.py
@@ -168,13 +196,13 @@ python visualize_predictions.py --model deeper
 python visualize_predictions.py --model simple --augment
 ```
 
-脚本根据 `--model` 选择 `main.py` 中的模型结构，根据 `--augment`、`--lr` 和 `--batch-size` 选择对应实验的模型文件，复用预处理并加载对应参数文件，自动选择 `mps` 或 `cpu`，不会重新训练模型。MNIST 数据保存在项目的 `data/` 目录；缺少数据时只下载 MNIST 数据集。
+脚本根据 `--model` 选择 `main.py` 中的模型结构，根据 `--augment`、`--lr`、`--batch-size` 和 `--optimizer` 选择对应实验的模型文件，复用预处理并加载对应参数文件，自动选择 `mps` 或 `cpu`，不会重新训练模型。MNIST 数据保存在项目的 `data/` 目录；缺少数据时只下载 MNIST 数据集。
 
 程序使用 matplotlib 显示测试集前 16 张图片，排列为 4×4 网格。每张图片的标题显示 `True: 真实标签, Pred: 预测标签`；预测错误时额外标注 `WRONG`。关闭图片窗口即可结束程序。
 
 ## 7. 可视化预测错误的样本
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128.pth`），在已激活的虚拟环境中运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128_adam.pth`），在已激活的虚拟环境中运行：
 
 ```bash
 python visualize_errors.py
@@ -184,13 +212,13 @@ python visualize_errors.py --model deeper
 python visualize_errors.py --model simple --augment
 ```
 
-脚本根据 `--model`、`--augment`、`--lr` 和 `--batch-size` 加载 `main.py` 中的对应模型结构和参数文件，使用不含随机增强的测试集预处理，自动选择 `mps` 或 `cpu`，不会重新训练模型。缺少数据时只下载 MNIST 数据集，并保存在项目的 `data/` 目录。
+脚本根据 `--model`、`--augment`、`--lr`、`--batch-size` 和 `--optimizer` 加载 `main.py` 中的对应模型结构和参数文件，使用不含随机增强的测试集预处理，自动选择 `mps` 或 `cpu`，不会重新训练模型。缺少数据时只下载 MNIST 数据集，并保存在项目的 `data/` 目录。
 
 程序完整遍历 MNIST 测试集，打印预测错误的总数，按测试集原始顺序显示前 16 个错误样本。matplotlib 窗口使用 4×4 网格，每张图片标题为 `True: 真实标签, Pred: 预测标签`。不足 16 个错误样本时，剩余位置留空；没有错误样本时打印提示并结束。关闭图片窗口即可结束程序。
 
 ## 8. 混淆矩阵分析
 
-确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128.pth`），在已激活的虚拟环境中运行：
+确保项目目录中已有所选模型的参数文件（默认是 `mnist_cnn_simple_lr0p001_bs128_adam.pth`），在已激活的虚拟环境中运行：
 
 ```bash
 python confusion_matrix.py
@@ -200,7 +228,7 @@ python confusion_matrix.py --model deeper
 python confusion_matrix.py --model simple --augment
 ```
 
-脚本根据 `--model`、`--augment`、`--lr` 和 `--batch-size` 加载对应模型结构和参数文件，自动选择 `mps` 或 `cpu`，完整遍历 MNIST 测试集，不会重新训练模型。缺少数据时只下载 MNIST 数据集到项目的 `data/` 目录；模型参数文件不存在时会给出清楚提示。
+脚本根据 `--model`、`--augment`、`--lr`、`--batch-size` 和 `--optimizer` 加载对应模型结构和参数文件，自动选择 `mps` 或 `cpu`，完整遍历 MNIST 测试集，不会重新训练模型。缺少数据时只下载 MNIST 数据集到项目的 `data/` 目录；模型参数文件不存在时会给出清楚提示。
 
 混淆矩阵的行是真实标签（True label），列是模型预测标签（Predicted label）。10×10 热力图的每个格子显示对应的样本数量：对角线表示正确分类，其他位置表示预测错误。终端按数量从高到低打印最容易混淆的前 10 个错误类别对，例如 `True 5 -> Pred 3: 12 samples`，不包含正确分类；不足 10 对时显示全部。关闭图形窗口即可结束程序。
 
@@ -208,7 +236,7 @@ python confusion_matrix.py --model simple --augment
 
 1. 加载训练集和测试集，将 28×28 灰度图片转换并归一化为张量。
 2. 根据 `--model` 选择两层卷积的 SimpleCNN 或四层卷积的 DeeperCNN，通过池化缩小特征图，再用全连接层输出 10 个类别的分数。
-3. 使用交叉熵损失和 Adam 优化器，按 `--epochs` 指定的轮数遍历训练集（默认 1 轮）。
+3. 使用交叉熵损失和 `--optimizer` 选择的优化器（默认 Adam），按 `--epochs` 指定的轮数遍历训练集（默认 1 轮）。
 4. 每轮训练后关闭梯度计算，在独立测试集上统计准确率，将平均训练损失和准确率写入 CSV；可通过 `plot_training_curve.py` 绘制曲线。
 5. 保存模型参数，再通过 `predict.py` 加载参数预测单张图片。
 
