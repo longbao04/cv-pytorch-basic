@@ -1,5 +1,36 @@
 # MNIST CNN 实验记录
 
+## 实验自动化
+
+`run_experiments.py` 自动运行多组实验，减少手动输入命令，并统一保存结果到 `experiment_results.csv`。运行命令：
+
+```bash
+python run_experiments.py
+```
+
+以下四组实验均使用 `augment=False`、`epochs=3`、`batch_size=64`。平均训练损失和测试准确率取最后一轮；汇总 CSV 的准确率为 0～1 小数。某组失败时打印原因，保留配置、指标留空，继续下一组。再次运行会覆盖汇总表。
+
+### 实验结果
+
+| model | augment | epochs | lr | batch_size | optimizer | avg_train_loss | test accuracy | 观察 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| simple | False | 3 | 0.001 | 64 | adam | 0.0424 | 98.55% | SimpleCNN + Adam 表现很好，比 SGD + momentum 高 0.15 个百分点。 |
+| simple | False | 3 | 0.01 | 64 | sgd | 0.1561 | 96.45% | 比之前 lr=0.001 的 71.53% 提高 24.92 个百分点。 |
+| simple | False | 3 | 0.01 | 64 | sgd_momentum | 0.0441 | 98.40% | 比同学习率的普通 SGD 高 1.95 个百分点，接近 Adam。 |
+| deeper | False | 3 | 0.001 | 64 | adam | 0.0360 | 98.92% | 本次四组实验中准确率最高、平均训练损失最低。 |
+
+以上结果根据已提供的 `experiment_results.csv` 填写，测试准确率已转换为百分比。
+
+### 实验结论
+
+1. `run_experiments.py` 成功自动运行了 4 组实验，并将结果保存到 `experiment_results.csv`。
+2. 当前四组实验中最好结果是 DeeperCNN + Adam，Accuracy 为 98.92%。
+3. SimpleCNN + Adam 的 Accuracy 为 98.55%，也表现很好。
+4. SGD 在 lr=0.01 时达到 96.45%，明显好于之前 lr=0.001 的 71.53%，提高了 24.92 个百分点。
+5. SGD + momentum 在 lr=0.01 时达到 98.40%，接近 Adam（SimpleCNN + Adam 为 98.55%）。
+6. 自动实验脚本可以减少手动输入命令，方便统一比较多组实验。
+7. 更严谨的下一步是多次重复实验，计算平均 accuracy 和标准差。
+
 ## 实验目的
 
 比较训练 1 epoch 和 3 epochs 的训练效果，观察最终损失、测试集准确率和错误样本特点的变化。

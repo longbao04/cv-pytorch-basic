@@ -120,6 +120,27 @@ python confusion_matrix.py --model simple --lr 0.001 --batch-size 64 --optimizer
 
 相同模型、增强开关、学习率、batch size 和 optimizer 再次训练会覆盖对应文件；不同 optimizer 的文件互不覆盖。缺少文件时会提示具体路径和对应训练命令。实验结果填写到 [experiment_notes.md](experiment_notes.md) 的 Optimizer 优化器实验一节。
 
+## 实验自动化
+
+在已激活的虚拟环境中运行：
+
+```bash
+python run_experiments.py
+```
+
+脚本通过 Python `subprocess` 依次调用 `main.py`，运行以下四组实验，均为 `epochs=3`、`augment=False`、`batch_size=64`：
+
+| model | optimizer | lr |
+| --- | --- | --- |
+| simple | adam | 0.001 |
+| simple | sgd | 0.01 |
+| simple | sgd_momentum | 0.01 |
+| deeper | adam | 0.001 |
+
+每组完成后，终端打印当前实验结果。`experiment_results.csv` 是多组实验的汇总表，保存在项目目录，字段为 `model, augment, epochs, lr, batch_size, optimizer, avg_train_loss, test_accuracy`。配置从 `main.py` 输出提取；指标取最后一轮的 Average train loss 和测试准确率，准确率保存为 0～1 小数（例如 `0.9855` 表示 `98.55%`），受终端输出精度限制。
+
+某组失败时会打印失败原因并继续下一组；汇总表保留该组配置，指标留空。每完成一组就保存结果，再次运行会覆盖汇总表。`experiment_results.csv` 可以提交到 GitHub；模型参数 `mnist_cnn_*.pth` 和每轮训练记录 `training_history*.csv` 继续忽略。运行后可在 [experiment_notes.md](experiment_notes.md) 的“实验自动化”一节填写观察和结论。
+
 ## 4. 绘制训练曲线
 
 训练生成对应的 CSV 后，在已激活的虚拟环境中运行：

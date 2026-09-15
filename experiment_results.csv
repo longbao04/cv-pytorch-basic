@@ -1,0 +1,5 @@
+model,augment,epochs,lr,batch_size,optimizer,avg_train_loss,test_accuracy
+simple,False,3,0.001,64,adam,0.0424,0.9854999999999999
+simple,False,3,0.01,64,sgd,0.1561,0.9645
+simple,False,3,0.01,64,sgd_momentum,0.0441,0.9840000000000001
+deeper,False,3,0.001,64,adam,0.036,0.9892
