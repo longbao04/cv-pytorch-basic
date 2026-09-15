@@ -259,3 +259,49 @@ test accuracy 填写最后一轮测试集 Accuracy。绘图时将 `--optimizer` 
 5. Adam 在 lr=0.001 下仍然最高，为 98.55%，比 SGD + momentum（lr=0.01）高 0.15 个百分点。
 6. 这个实验说明不同 optimizer 适合的学习率范围不同，比较 optimizer 时不能只固定同一个 lr。
 7. 更严谨的实验应该为每个 optimizer 单独调参，并多次运行，计算测试准确率的平均值和标准差。
+
+## 重复实验与平均值/标准差
+
+### 实验目的
+
+通过多个随机种子重复运行，减少单次随机性的影响，比较不同配置的平均表现和稳定性。重复实验共运行 4 组配置，每组使用 seed=0、1、2，epochs=3、augment=False、batch_size=64。指标均取最后一轮；以下汇总结果根据已有的 `repeated_experiment_summary.csv` 填写，本次未重新训练。未提供各 seed 的单次结果，单次实验结果模板保留为空。
+
+### 单次实验结果模板
+
+| model | optimizer | lr | seed | avg_train_loss | test_accuracy |
+| --- | --- | --- | --- | --- | --- |
+| simple | adam | 0.001 | 0 | | |
+| simple | adam | 0.001 | 1 | | |
+| simple | adam | 0.001 | 2 | | |
+| simple | sgd | 0.01 | 0 | | |
+| simple | sgd | 0.01 | 1 | | |
+| simple | sgd | 0.01 | 2 | | |
+| simple | sgd_momentum | 0.01 | 0 | | |
+| simple | sgd_momentum | 0.01 | 1 | | |
+| simple | sgd_momentum | 0.01 | 2 | | |
+| deeper | adam | 0.001 | 0 | | |
+| deeper | adam | 0.001 | 1 | | |
+| deeper | adam | 0.001 | 2 | | |
+
+### 汇总实验结果
+
+| model | augment | epochs | lr | batch_size | optimizer | mean accuracy | std accuracy | mean loss | std loss | 观察 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| simple | False | 3 | 0.001 | 64 | adam | 98.80% | 0.09% | 0.043428 | 0.001913 | 平均准确率与 SGD + momentum 几乎相同，seed 间波动较小。 |
+| simple | False | 3 | 0.01 | 64 | sgd | 96.56% | 0.08% | 0.153087 | 0.008645 | 平均准确率明显低于其他三个配置，平均训练损失最高。 |
+| simple | False | 3 | 0.01 | 64 | sgd_momentum | 98.82% | 0.07% | 0.043297 | 0.001130 | 平均准确率最高，准确率标准差最小，但与两个 Adam 配置的均值差异很小。 |
+| deeper | False | 3 | 0.001 | 64 | adam | 98.78% | 0.14% | 0.037674 | 0.000292 | 平均训练损失最低，平均准确率与 SimpleCNN 的两个高准确率配置非常接近，准确率波动略大。 |
+
+`repeated_experiment_results.csv` 是所有单次实验结果；`repeated_experiment_summary.csv` 是按配置汇总后的 mean/std 结果。mean accuracy 表示平均准确率；std accuracy 表示不同 seed 之间结果波动大小，std 越小说明结果越稳定。mean loss 和 std loss 分别表示平均训练损失的均值和标准差。准确率保存为 0～1 小数；标准差使用样本标准差（n-1），少于两个成功结果时留空，失败实验不参与统计。
+
+表中的 mean accuracy 和 std accuracy 均转换为百分比并保留两位小数；例如 0.988 写为 98.80%，0.0009 写为 0.09%（即 0.09 个百分点的准确率标准差）。mean loss 和 std loss 保留六位小数。
+
+### 实验结论
+
+1. 重复实验共运行 4 组配置，每组 3 个 seed，共 12 次实验。
+2. SimpleCNN + SGD momentum 的平均准确率最高，为 98.82%。
+3. SimpleCNN + Adam 的平均准确率为 98.80%，与 SimpleCNN + SGD momentum 几乎相同。
+4. DeeperCNN + Adam 的平均准确率为 98.78%，也非常接近，但 std accuracy 为 0.14%，波动略大。
+5. 普通 SGD 的平均准确率为 96.56%，明显低于其他三个配置。
+6. 单次实验中 DeeperCNN + Adam 曾达到 98.92%，但重复实验平均后没有明显领先，说明单次结果可能受随机性影响。
+7. 更可靠的实验结论应该看 mean 和 std，而不是只看某一次最高 accuracy。

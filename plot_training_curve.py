@@ -24,16 +24,18 @@ def main():
     # 优化器决定如何根据梯度更新参数，也用于区分实验文件。
     parser.add_argument("--optimizer", choices=["adam", "sgd", "sgd_momentum"],
                         default="adam", help="训练优化器（默认：adam；sgd_momentum 的 momentum 为 0.9）")
+    # seed 用于区分不同随机初始化的实验；加载文件时应与训练保持一致。
+    parser.add_argument("--seed", type=int, default=42, help="随机种子（默认：42）")
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size 必须是大于或等于 1 的整数")
-    # 模型结构、增强开关、学习率、批次大小和优化器一起决定读取哪个 CSV。
-    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
+    # 模型结构、增强开关、学习率、批次大小、优化器和 seed 一起决定读取哪个 CSV。
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer, args.seed)
     if not history_path.is_file():
         print(
             f"找不到训练记录：{history_path}\n"
             f"请先运行 python main.py --model {args.model} --epochs 3"
-            f"{' --augment' if args.augment else ''} --lr {args.lr} --batch-size {args.batch_size} --optimizer {args.optimizer} 生成 {history_path.name}。"
+            f"{' --augment' if args.augment else ''} --lr {args.lr} --batch-size {args.batch_size} --optimizer {args.optimizer} --seed {args.seed} 生成 {history_path.name}。"
         )
         return
 

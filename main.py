@@ -2,9 +2,12 @@
 
 import argparse
 import csv
+import json
+import random
 from decimal import Decimal
 from pathlib import Path
 
+import numpy
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
@@ -21,16 +24,16 @@ def format_lr(lr):
     return format(Decimal(str(lr)), "f").replace(".", "p")
 
 
-def get_model_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam"):
-    """按模型结构、增强开关、学习率、批次大小和优化器区分参数文件，避免不同实验互相覆盖。"""
+def get_model_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam", seed=42):
+    """按模型结构、增强开关、学习率、批次大小、优化器和随机种子区分参数文件，避免不同实验互相覆盖。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}.pth"
+    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}_seed{seed}.pth"
 
 
-def get_history_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam"):
+def get_history_path(model_name, augment=False, lr=0.001, batch_size=128, optimizer="adam", seed=42):
     """训练和绘图共用命名规则，每种实验分别保存训练记录。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}.csv"
+    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}_{optimizer}_seed{seed}.csv"
 
 
 def build_transform(augment=False):
@@ -169,6 +172,8 @@ def main():
     # 优化器决定如何根据梯度更新参数，也用于区分实验文件。
     parser.add_argument("--optimizer", choices=["adam", "sgd", "sgd_momentum"],
                         default="adam", help="训练优化器（默认：adam；sgd_momentum 的 momentum 为 0.9）")
+    # seed 用于区分不同随机初始化的实验；加载文件时应与训练保持一致。
+    parser.add_argument("--seed", type=int, default=42, help="随机种子（默认：42）")
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size 必须是大于或等于 1 的整数")
@@ -178,11 +183,15 @@ def main():
     print(
         f"训练配置：model={args.model} | epochs={args.epochs} "
         f"| augment={args.augment} | lr={args.lr} | batch_size={args.batch_size} "
-        f"| optimizer={args.optimizer}",
+        f"| optimizer={args.optimizer} | seed={args.seed}",
         flush=True,
     )
 
-    torch.manual_seed(42)
+    # 在数据加载和模型创建前设置种子，控制随机初始化、打乱顺序和数据增强。
+    random.seed(args.seed)
+    numpy.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    # 不强制确定性算子，保持 MPS 正常运行；跨设备结果仍可能有差异。
     # Apple Silicon Mac 优先使用 MPS；不可用时自动使用 CPU。
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     print(f"使用设备：{device}", flush=True)
@@ -205,8 +214,8 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
     model = build_model(args.model).to(device)
-    model_path = get_model_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
-    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer)
+    model_path = get_model_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer, args.seed)
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size, args.optimizer, args.seed)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
     # Adam 会自适应调整更新步长；SGD 使用普通梯度下降。
     # momentum=0.9 让 SGD 累积之前的更新方向，帮助持续向前更新。
@@ -218,7 +227,7 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置、学习率、批次大小和优化器会覆盖该实验的记录。
+    # 每轮训练后测试，并写入 CSV；再次训练相同配置和 seed 会覆盖记录；不同 seed 分别保存。
     with history_path.open("w", newline="", encoding="utf-8") as history_file:
         writer = csv.DictWriter(
             history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]
@@ -246,6 +255,14 @@ def main():
     # 只保存模型参数；预测时先创建相同结构，再加载这些参数。
     torch.save(model.state_dict(), model_path)
     print(f"模型参数已保存到：{model_path}")
+
+    # 输出完整精度的最后一轮结果，供自动实验脚本读取，避免显示四舍五入影响统计。
+    result = {
+        "model": args.model, "augment": args.augment, "epochs": args.epochs,
+        "lr": args.lr, "batch_size": args.batch_size, "optimizer": args.optimizer,
+        "seed": args.seed, "avg_train_loss": avg_train_loss, "test_accuracy": accuracy,
+    }
+    print("EXPERIMENT_RESULT: " + json.dumps(result), flush=True)
 
 
 if __name__ == "__main__":

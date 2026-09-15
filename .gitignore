@@ -9,8 +9,11 @@ training_history.csv
 sample_digit.png
 mnist_cnn_simple_aug.pth
 mnist_cnn_deeper_aug.pth
-# 忽略每轮训练记录和模型参数，包括按学习率、batch size、optimizer 区分的文件。
+# 忽略每轮训练记录和模型参数，包括按学习率、batch size、optimizer、seed 区分的文件。
 training_history*.csv
 mnist_cnn_*.pth
 # 多组实验的汇总表可以提交到 GitHub。
 !experiment_results.csv
+# 重复实验的单次结果和 mean/std 汇总表可以提交到 GitHub。
+!repeated_experiment_results.csv
+!repeated_experiment_summary.csv

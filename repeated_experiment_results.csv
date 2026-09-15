@@ -1,0 +1,13 @@
+model,augment,epochs,lr,batch_size,optimizer,seed,avg_train_loss,test_accuracy
+simple,False,3,0.001,64,adam,0,0.04532845321906109,0.9871
+simple,False,3,0.001,64,adam,1,0.041502060902118686,0.988
+simple,False,3,0.001,64,adam,2,0.04345400868703922,0.9889
+simple,False,3,0.01,64,sgd,0,0.14315836143692334,0.966
+simple,False,3,0.01,64,sgd,1,0.15715751036802927,0.9647
+simple,False,3,0.01,64,sgd,2,0.1589464617451032,0.9662
+simple,False,3,0.01,64,sgd_momentum,0,0.04451914106309414,0.9878
+simple,False,3,0.01,64,sgd_momentum,1,0.04308275556402902,0.9877
+simple,False,3,0.01,64,sgd_momentum,2,0.04228901593784491,0.989
+deeper,False,3,0.001,64,adam,0,0.03742972113372137,0.9863
+deeper,False,3,0.001,64,adam,1,0.03799712207218011,0.988
+deeper,False,3,0.001,64,adam,2,0.03759611187732468,0.9891
