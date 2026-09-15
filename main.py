@@ -21,16 +21,16 @@ def format_lr(lr):
     return format(Decimal(str(lr)), "f").replace(".", "p")
 
 
-def get_model_path(model_name, augment=False, lr=0.001):
-    """按模型结构、增强开关和学习率区分参数文件，避免不同实验互相覆盖。"""
+def get_model_path(model_name, augment=False, lr=0.001, batch_size=128):
+    """按模型结构、增强开关、学习率和批次大小区分参数文件，避免不同实验互相覆盖。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}.pth"
+    return PROJECT_DIR / f"mnist_cnn_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}.pth"
 
 
-def get_history_path(model_name, augment=False, lr=0.001):
+def get_history_path(model_name, augment=False, lr=0.001, batch_size=128):
     """训练和绘图共用命名规则，每种实验分别保存训练记录。"""
     suffix = "_aug" if augment else ""
-    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}.csv"
+    return PROJECT_DIR / f"training_history_{model_name}{suffix}_lr{format_lr(lr)}_bs{batch_size}.csv"
 
 
 def build_transform(augment=False):
@@ -163,13 +163,18 @@ def main():
     # 学习率决定训练时每次参数更新的步长，也用于区分实验文件。
     parser.add_argument("--lr", type=float, default=0.001,
                         help="训练学习率（默认：0.001）")
+    # batch size 表示每批图片的数量，也用于选择对应实验文件。
+    parser.add_argument("--batch-size", type=int, default=128,
+                        help="训练批次大小（默认：128，必须大于 0）")
     args = parser.parse_args()
+    if args.batch_size < 1:
+        parser.error("--batch-size 必须是大于或等于 1 的整数")
     if args.epochs < 1:
         parser.error("--epochs 必须是大于或等于 1 的整数")
 
     print(
         f"训练配置：model={args.model} | epochs={args.epochs} "
-        f"| augment={args.augment} | lr={args.lr}",
+        f"| augment={args.augment} | lr={args.lr} | batch_size={args.batch_size}",
         flush=True,
     )
 
@@ -190,18 +195,19 @@ def main():
     test_dataset = datasets.MNIST(
         root=str(data_dir), train=False, download=True, transform=test_transform
     )
+    # 训练和测试都使用指定的批次大小，便于比较不同 batch size。
     # num_workers=0 避免 Mac 新手遇到多进程数据加载问题。
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=0)
-    test_loader = DataLoader(test_dataset, batch_size=256, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=0)
 
     model = build_model(args.model).to(device)
-    model_path = get_model_path(args.model, args.augment, args.lr)
-    history_path = get_history_path(args.model, args.augment, args.lr)
+    model_path = get_model_path(args.model, args.augment, args.lr, args.batch_size)
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size)
     criterion = nn.CrossEntropyLoss()  # 多分类任务常用的交叉熵损失。
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     # 一个 epoch 表示完整遍历一次训练集。
-    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置和学习率会覆盖该实验的记录。
+    # 每轮训练后测试，并写入 CSV；再次训练相同模型、增强设置、学习率和批次大小会覆盖该实验的记录。
     with history_path.open("w", newline="", encoding="utf-8") as history_file:
         writer = csv.DictWriter(
             history_file, fieldnames=["epoch", "avg_train_loss", "test_accuracy"]

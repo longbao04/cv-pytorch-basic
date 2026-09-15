@@ -18,14 +18,19 @@ def main():
     # 学习率决定训练时每次参数更新的步长，也用于区分实验文件。
     parser.add_argument("--lr", type=float, default=0.001,
                         help="训练学习率（默认：0.001）")
+    # batch size 表示每批图片的数量，也用于选择对应实验文件。
+    parser.add_argument("--batch-size", type=int, default=128,
+                        help="训练批次大小（默认：128，必须大于 0）")
     args = parser.parse_args()
-    # 模型结构、增强开关和学习率一起决定读取哪个 CSV。
-    history_path = get_history_path(args.model, args.augment, args.lr)
+    if args.batch_size < 1:
+        parser.error("--batch-size 必须是大于或等于 1 的整数")
+    # 模型结构、增强开关、学习率和批次大小一起决定读取哪个 CSV。
+    history_path = get_history_path(args.model, args.augment, args.lr, args.batch_size)
     if not history_path.is_file():
         print(
             f"找不到训练记录：{history_path}\n"
             f"请先运行 python main.py --model {args.model} --epochs 3"
-            f"{' --augment' if args.augment else ''} --lr {args.lr} 生成 {history_path.name}。"
+            f"{' --augment' if args.augment else ''} --lr {args.lr} --batch-size {args.batch_size} 生成 {history_path.name}。"
         )
         return
 
