@@ -200,3 +200,31 @@ test accuracy 填写最后一轮测试集 Accuracy。绘图时将 `--optimizer` 
 - 但 SGD + momentum 的准确率仍低于 Adam，差距为 2.18 个百分点。
 - 普通 SGD 表现差可能是因为 lr=0.001 对 SGD 来说偏小，3 epochs 内训练不充分。
 - 更严谨的实验可以给 SGD 单独调大学习率，例如 lr=0.01，再比较效果。
+
+## SGD 学习率补充实验
+
+### 实验目的
+
+在 SimpleCNN、augment=False、epochs=3、batch_size=64 的条件下，补充比较 SGD 和 SGD + momentum 在 lr=0.001 与 lr=0.01 时的表现，并以 Adam（lr=0.001）作为参考。SGD + momentum 使用 momentum=0.9。
+
+### 实验结果
+
+| optimizer | lr | batch_size | average train loss | test accuracy | 观察 |
+| --- | --- | --- | --- | --- | --- |
+| Adam | 0.001 | 64 | | 98.55% | 本次比较中测试准确率最高。 |
+| SGD | 0.001 | 64 | 1.8527 | 71.53% | 训练损失较高，学习率偏小，3 epochs 内训练不充分。 |
+| SGD | 0.01 | 64 | 0.1561 | 96.45% | 提高学习率后，训练损失明显降低，准确率提升 24.92 个百分点。 |
+| SGD + momentum | 0.001 | 64 | 0.1587 | 96.37% | 同学习率下明显优于普通 SGD。 |
+| SGD + momentum | 0.01 | 64 | 0.0441 | 98.40% | 同学习率下比普通 SGD 高 1.95 个百分点，接近 Adam。 |
+
+以上结果来自已有实验记录，本次未重新训练。`average train loss` 记录最后一轮的 Average train loss，不是最后一个 batch 的 loss；未提供的 Adam 平均训练损失留空。
+
+### 实验结论
+
+1. SGD 在 lr=0.001 时准确率只有 71.53%，说明当前条件下学习率太小，3 epochs 内训练不充分。
+2. SGD 把 lr 提高到 0.01 后，准确率提升到 96.45%，提高了 24.92 个百分点，说明 SGD 对学习率比较敏感。
+3. SGD + momentum 在 lr=0.01 时达到 98.40%，明显优于同学习率下的普通 SGD（96.45%）。
+4. Momentum 可以帮助 SGD 更快、更稳定地优化；本次损失和准确率结果支持其优化效果，具体收敛速度和稳定性仍需结合训练曲线验证。
+5. Adam 在 lr=0.001 下仍然最高，为 98.55%，比 SGD + momentum（lr=0.01）高 0.15 个百分点。
+6. 这个实验说明不同 optimizer 适合的学习率范围不同，比较 optimizer 时不能只固定同一个 lr。
+7. 更严谨的实验应该为每个 optimizer 单独调参，并多次运行，计算测试准确率的平均值和标准差。
